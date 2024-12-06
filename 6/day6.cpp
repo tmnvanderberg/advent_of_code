@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <map>
 #include <fstream>
+#include <chrono>
+#include <unordered_set>
 
 constexpr char _obstruction_ {'#'};
 constexpr char _visited_tile_ {'X'};
@@ -34,6 +36,20 @@ struct place {
 	direction dir;
 };
 
+struct place_hash {
+    std::size_t operator()(const place &p) const {
+        return std::hash<int>()(p.row) 
+             ^ (std::hash<int>()(p.col) << 1) 
+             ^ (std::hash<int>()(static_cast<int>(p.dir)) << 2);
+    }
+};
+
+struct place_equal {
+    bool operator()(const place &a, const place &b) const {
+        return a.row == b.row && a.col == b.col && a.dir == b.dir;
+    }
+};
+
 class guard {
 	public:
 
@@ -50,7 +66,7 @@ class guard {
 
 		void find_start() {
 			for (int row = 0; row != _rsize; ++row) {
-				for (int col = 0; col != _rsize; ++col) {
+				for (int col = 0; col != _csize; ++col) {
 					const char candidate = _map[row][col];	
 					if (guard_char_directions.count(candidate) != 0) {
 						_current.dir = guard_char_directions.at(candidate);
@@ -91,13 +107,7 @@ class guard {
 		}
 
 		bool is_looping(const place &to) {
-			return std::any_of(
-					_history.cbegin(), 
-					_history.cend(), 
-					[&](const place &pl) {
-						return (pl.dir == to.dir && pl.row == to.row &&	pl.col == to.col);
-					}
-				);
+			return _history.find(to) != _history.end();
 		}
 
 		void move(const place& next){
@@ -136,7 +146,7 @@ class guard {
 		}
 
 		result move() {
-			_history.push_back(_current);
+			_history.insert(_current);
 			const place next = get_next(_current.dir);
 			if (is_looping(next)) {
 				return result::loop;
@@ -155,7 +165,7 @@ class guard {
 
 	private:
 		place _current;
-		std::vector<place> _history;
+		std::unordered_set<place, place_hash, place_equal> _history;
 		int _rsize;
 		int _csize;
 		std::vector<std::string> _map;
@@ -189,6 +199,8 @@ int main() {
 	/* 	"......#...", */
 	/* }; */
 
+	auto t1 = std::chrono::high_resolution_clock::now();
+
 	std::vector<std::vector<std::string>> maps_with_extra_obstructions;
 	const int row_size = static_cast<int>(map.size());
 	const int col_size = static_cast<int>(map[0].size());
@@ -201,6 +213,8 @@ int main() {
 			}
 		}
 	}
+
+	auto t2 = std::chrono::high_resolution_clock::now();
 	
 	int num_loop_positions {0};
 
@@ -215,5 +229,12 @@ int main() {
 			}
 	}
 
+	auto t3 = std::chrono::high_resolution_clock::now();
+
 	std::cout << "num_loop_positions: " << num_loop_positions << std::endl;
+
+	auto ms_first = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
+	auto ms_second= std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2);
+
+	std::cout << "durations: [" << ms_first.count() << ", " << ms_second.count() << "]" << std::endl;
 }
