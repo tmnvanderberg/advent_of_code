@@ -49,6 +49,10 @@ void validate_combinations(equation_t* equation, size_t index, unsigned long out
 		// another branch returned
 		return;
 	}
+	if (out > equation->outcome){
+		// already missed the mark
+		return;
+	}	
 	if (index == equation->count - 1) {
 		if (out == equation->outcome) {
 			equation->possible = true;
