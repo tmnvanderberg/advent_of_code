@@ -45,6 +45,10 @@ long int concat(long int left, long int right) {
 }
 
 void validate_combinations(equation_t* equation, size_t index, unsigned long out) {
+	if (equation->possible == true) {
+		// another branch returned
+		return;
+	}
 	if (index == equation->count - 1) {
 		if (out == equation->outcome) {
 			equation->possible = true;
