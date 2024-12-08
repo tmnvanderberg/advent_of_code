@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+const size_t _max_digits_in_long_int_ = 21;
+
 typedef struct {
 	unsigned long outcome;
 	unsigned long *values;
@@ -16,7 +18,6 @@ typedef struct {
 	size_t size;
 } equation_list_t;
 
-
 void add_value(equation_t* equation, unsigned long value) {
 	if (equation->count >= equation->size) {
 		equation->size = (equation->size == 0 ? 1 : 2 * equation->size);
@@ -28,77 +29,35 @@ void add_value(equation_t* equation, unsigned long value) {
 	(equation->values)[equation->count++] = value;
 }
 
-void add_equation_shallow(equation_list_t* equation_list, equation_t equation) {
-	if (equation_list->count >= equation_list->size) {
-		equation_list->size = (equation_list->size == 0 ? 1 : 2 * equation_list->size);
-		equation_list->equations = (equation_t *) realloc(equation_list->equations, equation_list->size * sizeof(equation_t));
-		if (!equation_list->equations) {
-			exit(EXIT_FAILURE);
-		}
-	}
-	(equation_list->equations)[equation_list->count++] = equation;
+long int concat(long int left, long int right) {
+	char ch_l[_max_digits_in_long_int_];	
+	snprintf(ch_l, _max_digits_in_long_int_, "%li", left);	
+
+	char ch_r[_max_digits_in_long_int_];	
+	snprintf(ch_r, _max_digits_in_long_int_, "%li", right);	
+
+	size_t out_sz = strlen(ch_l) + strlen(ch_r) + 1;
+	char out[out_sz];
+
+	snprintf(out, out_sz, "%s%s", ch_l, ch_r);
+
+	return strtol(out, NULL, 10);
 }
 
-constexpr size_t linecount = 9;
-
-const char* unparsed_equations[linecount] = {
-	"190: 10 19",
-	"3267: 81 40 27",
-	"83: 17 5",
-	"156: 15 6",
-	"7290: 6 8 6 15",
-	"161011: 16 10 13",
-	"192: 17 8 14",
-	"21037: 9 7 18 13",
-	"292: 11 6 16 20"
-};
-
-void print_equation(equation_t *equation) {
-	printf("%li:", equation->outcome);	
-	for (size_t i = 0; i != equation->count; i++) {
-		printf(" %ld", equation->values[i]);
+void validate_combinations(equation_t* equation, size_t index, unsigned long out) {
+	if (index == equation->count - 1) {
+		if (out == equation->outcome) {
+			equation->possible = true;
+		}
+		return;
 	}
-	printf(equation->possible ? " -> possible" : " -> impossible");
-	printf("\n");
-};
-
-void print_equation_list(equation_list_t* equation_list) {
-	for (size_t i = 0; i != equation_list->count; i++) {
-		equation_t *equation = &equation_list->equations[i];
-		print_equation(equation);
-	}
-};
-
-bool validate(equation_t* equation) {
-		for (unsigned int n = 0; n < (1u << equation->count); ++n) {
-			unsigned int num = n;
-			unsigned long long outcome = equation->values[0];
-			for (unsigned int bit = 1; bit != equation->count; ++bit) {
-				int flag = num & 0x01;
-				if (flag == 0) {
-					outcome += equation->values[bit];
-				} else {
-					outcome *= equation->values[bit];
-				}
-				num = num >> 1;
-			}
-			if (outcome == equation->outcome) {
-				equation->possible = true;
-				return true;
-			}
-		}	
-		equation->possible = false;
-		return false;
+	validate_combinations(equation, index + 1, out + equation->values[index + 1]);
+	validate_combinations(equation, index + 1, out * equation->values[index + 1]);
+	validate_combinations(equation, index + 1, concat(out, equation->values[index + 1]));
 }
 
 int main()
 {
-	equation_list_t equation_list = {
-		.equations = NULL,
-		.count = 0,
-		.size = 0
-	};
-
 	FILE *fp = fopen("input.txt", "r");
 	if (fp == NULL) {
 		exit(EXIT_FAILURE);
@@ -106,10 +65,10 @@ int main()
 	
 	char *line = NULL;
 	size_t length = 0;
-	ssize_t read;
 	unsigned long total = 0;
-	/* for (int i = 0; i != linecount; i++) { */
-  while ((read = getline(&line, &length, fp)) != -1) {
+
+  while (getline(&line, &length, fp) != -1) {
+
 		equation_t equation = {
 			.outcome = 0,
 			.values = NULL,
@@ -129,14 +88,18 @@ int main()
 			tokens = strtok(NULL, " ");
 		}
 
-		validate(&equation);
+		validate_combinations(&equation, 0, equation.values[0]);
 
 		if (equation.possible) {
 			total += equation.outcome;
-		}
+		} 
 
-		add_equation_shallow(&equation_list, equation);
+		free(unparsed_equation);
+		free(equation.values);
 	}
-	/* print_equation_list(&equation_list); */
 	printf("total = %li\n", total);
+	
+	// cleanup
+	free(line);
+	fclose(fp);
 }
