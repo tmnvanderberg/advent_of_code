@@ -1,9 +1,9 @@
 CXX = g++
-CXXFLAGS = -std=c++20 -Wall -Wextra -O2
+CXXFLAGS = -Wall -Wextra -O2
 
 TARGET = day7
 
-SRC = day7.cpp
+SRC = day7.c
 
 OBJ = $(SRC:.cpp=.o)
 
